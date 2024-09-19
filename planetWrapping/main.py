@@ -2,13 +2,11 @@ from BlazeSudio import ldtk
 from BlazeSudio.Game import Game
 from BlazeSudio import collisions
 import BlazeSudio.Game.statics as Ss
-from demogames.planetWrapping.planetCollisions import approximate_polygon
+from planetCollisions import approximate_polygon
 import pygame
 
-thispth = __file__[:__file__.rindex('/')]
-
 G = Game()
-G.load_map(thispth+"/main.ldtk")
+G.load_map("./main.ldtk")
 
 class DebugCommands:
     def __init__(self, Game):

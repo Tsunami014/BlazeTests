@@ -2,6 +2,8 @@ from shapely import concave_hull
 from shapely.geometry import MultiPoint
 from BlazeSudio.collisions import Polygon
 
+# TODO: Put in with the main BlazeSudio library
+
 def approximate_polygon(surface, tolerance=3, ratio=0.1):
     """
     Returns a concave polygon that approximates the non-transparent area of the surface.
@@ -15,7 +17,7 @@ def approximate_polygon(surface, tolerance=3, ratio=0.1):
     for x in range(0, width, tolerance):
         for y in range(0, height, tolerance):
             color = surface.get_at((x, y))
-            if color.a == 255:
+            if color.a == 255 and (color.r != 0 and color.g != 0 and color.b != 0):
                 non_transparent_points.append((x, y))
     
     polygon_points = []

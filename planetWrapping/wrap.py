@@ -15,5 +15,5 @@ imgs, szes = wrap.renderWorld(world)
 
 pth = os.path.dirname(__file__) + "/"
 
-wrap.save(imgs[0], pth+"out.png", max(szes))
-wrap.save(imgs[1], pth+"colls.png", max(szes))
+wrap.save(imgs[0], pth+"out/out.png", max(szes))
+wrap.save(imgs[1], pth+"out/colls.png", max(szes))

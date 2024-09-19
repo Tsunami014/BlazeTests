@@ -350,7 +350,7 @@
 			"__cHei": 3,
 			"identifier": "Out",
 			"uid": 3,
-			"relPath": "out.png",
+			"relPath": "out/out.png",
 			"embedAtlas": null,
 			"pxWid": 128,
 			"pxHei": 384,
@@ -362,7 +362,7 @@
 			"enumTags": [],
 			"customData": [],
 			"savedSelections": [],
-			"cachedPixelData": { "opaqueTiles": "000", "averageColors": "256653453556" }
+			"cachedPixelData": { "opaqueTiles": "000", "averageColors": "266744453566" }
 		},
 		{
 			"__cWid": 32,
@@ -493,7 +493,7 @@
 					"entityInstances": [
 						{
 							"__identifier": "CircleRegion",
-							"__grid": [10,38],
+							"__grid": [11,37],
 							"__pivot": [0.5,0.5],
 							"__tags": ["region"],
 							"__tile": null,
@@ -502,14 +502,14 @@
 							"width": 40,
 							"height": 40,
 							"defUid": 5,
-							"px": [80,304],
+							"px": [88,296],
 							"fieldInstances": [],
-							"__worldX": 88,
-							"__worldY": 208
+							"__worldX": 96,
+							"__worldY": 200
 						},
 						{
 							"__identifier": "CircleRegion",
-							"__grid": [14,18],
+							"__grid": [15,17],
 							"__pivot": [0.5,0.5],
 							"__tags": ["region"],
 							"__tile": null,
@@ -518,10 +518,10 @@
 							"width": 64,
 							"height": 64,
 							"defUid": 5,
-							"px": [116,148],
+							"px": [124,140],
 							"fieldInstances": [],
-							"__worldX": 124,
-							"__worldY": 52
+							"__worldX": 132,
+							"__worldY": 44
 						},
 						{
 							"__identifier": "CircleRegion",
@@ -576,7 +576,7 @@
 					"__pxTotalOffsetX": 0,
 					"__pxTotalOffsetY": 0,
 					"__tilesetDefUid": 3,
-					"__tilesetRelPath": "out.png",
+					"__tilesetRelPath": "out/out.png",
 					"iid": "ae11d7c0-4ce0-11ef-a642-b9039281b733",
 					"levelId": 0,
 					"layerDefUid": 1,

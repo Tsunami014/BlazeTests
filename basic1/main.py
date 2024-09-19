@@ -3,10 +3,8 @@ from BlazeSudio.collisions import collisions
 import BlazeSudio.Game.statics as Ss
 import pygame
 
-thispth = __file__[:__file__.rindex('/')]
-
 G = Game()
-G.load_map(thispth+"/world.ldtk")
+G.load_map("./world.ldtk")
 
 class DebugCommands: # TODO: Make this not floating around as a global variable
     def __init__(self, Game):

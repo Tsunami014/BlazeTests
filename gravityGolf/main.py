@@ -4,10 +4,8 @@ import BlazeSudio.Game.statics as Ss
 from BlazeSudio.graphics import options as GO
 import pygame
 
-thispth = __file__[:__file__.rindex('/')]
-
 G = Game()
-G.load_map(thispth+"/levels.ldtk")
+G.load_map("./levels.ldtk")
 # TODO: A more uniform way to access things (e.g. the current level)
 
 class DebugCommands:
