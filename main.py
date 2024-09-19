@@ -2,7 +2,7 @@ import os
 import json
 import importlib
 
-allGames = [i for i in os.listdir() if '.' not in i]
+allGames = [i for i in os.listdir() if '.' not in i and i not in ('readmeAssets', '__pycache__')]
 
 with open('data.json') as f:
     gameData = json.load(f)
