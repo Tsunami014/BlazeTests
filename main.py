@@ -25,6 +25,7 @@ if i.isdecimal():
             print(f'Starting demo game {i}: {gameData[folders.index(allGames[i])]["Name"]}...')
         else:
             print(f'Starting demo game {i}: {allGames[i]}...')
+        os.chdir(os.path.join(os.getcwd(), 'demogames', allGames[i]))
         importlib.import_module(allGames[i]+'.main')
     else:
         print('Number out of range! Exiting...')
