@@ -5,8 +5,6 @@ A buncha games to test the capabilities of [BlazeSudio](https://github.com/Tsuna
 ## Gravity Golf
 Play golf across the galaxy! Uses the physics engine to have cool gravity effects!
 
-https://github.com/Tsunami014/BlazeTests/raw/master/readmeAssets/GravityGolf%20demo.mp4
-
 ## Basic-1
 One of LDtk's main levels brought to life with Blaze!
 
