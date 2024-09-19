@@ -2,7 +2,7 @@ from BlazeSudio import ldtk
 from BlazeSudio.Game import Game
 from BlazeSudio import collisions
 import BlazeSudio.Game.statics as Ss
-from planetCollisions import approximate_polygon
+from BlazeSudio.utils import approximate_polygon
 import pygame
 
 G = Game()

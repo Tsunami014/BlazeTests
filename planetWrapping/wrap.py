@@ -11,7 +11,7 @@ from BlazeSudio.utils import wrap
 
 world = world.World("./planets.ldtk")
 
-imgs, szes = wrap.renderWorld(world)
+imgs, szes = wrap.wrapWorld(world)
 
 pth = os.path.dirname(__file__) + "/"
 
