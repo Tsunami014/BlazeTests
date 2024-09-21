@@ -8,6 +8,8 @@ Anything without credit can be assumed to be made by me. No guarantees tho. If I
 # Games
 ## Gravity Golf
 Play golf across the galaxy! Uses the physics engine to have cool gravity effects!
+### Credits
+The `Inca_front_by_Kronbits-extended.png` is assumedly by Kronbits. //TODO: Find original source.
 
 ## Basic-1
 One of LDtk's main levels brought to life with Blaze!

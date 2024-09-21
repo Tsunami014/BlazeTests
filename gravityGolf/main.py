@@ -1,7 +1,9 @@
+from BlazeSudio import ldtk
 from BlazeSudio.Game import Game
 from BlazeSudio import collisions
 import BlazeSudio.Game.statics as Ss
 from BlazeSudio.graphics import options as GO
+from BlazeSudio.utils import approximate_polygon
 import pygame
 
 G = Game()
@@ -16,12 +18,12 @@ class DebugCommands:
         Game.AddCommand('/prev', 'Load the previous level', lambda: Game.load_scene(lvl=Game.currentScene.lvl-1))
         Game.AddCommand('/splash', 'Go back to the splash screen', lambda: Game.load_scene(SplashScreen))
         Game.AddCommand('/reload', 'Reload the current level', lambda: Game.load_scene(lvl=Game.currentScene.lvl))
-        self.dotCollisionDebug = False
-        Game.AddCommand('/dot', 'Toggle dot collision debug', self.toggleDot)
+        self.showingColls = False
+        self.Game.AddCommand('/colls', 'Toggle collision debug', self.toggleColls)
     
-    def toggleDot(self):
-        self.dotCollisionDebug = not self.dotCollisionDebug
-        self.Game.G.Toast('Dot collision toggled to ' + ('enabled' if self.dotCollisionDebug else 'disabled'))
+    def toggleColls(self):
+        self.showingColls = not self.showingColls
+        self.Game.G.Toast(('Showing' if self.showingColls else 'Not showing') + ' collisions')
 
 debug = DebugCommands(G)
 
@@ -29,32 +31,35 @@ class PlayerEntity(Ss.BaseEntity):
     def __init__(self, Game, entity):
         super().__init__(Game, entity)
         self.collided = False
-        self.accel_amnt = [[5, 5], [0.5, 0.5]]
-        self.max_accel = [60, 60]
+        self.accel_amnt = [[2.5, 2.5], [0.5, 0.5]]
+        self.max_accel = [30, 30]
+        #self.friction = [0.1, 0.1]
         self.defcollideDelay = 3
         self.collidingDelay = self.defcollideDelay
         self.defClickDelay = 3
         self.clicked = 0
     
     def __call__(self, keys):
-        objs = collisions.Shapes(*self.Game.currentScene.GetEntitiesByLayer('GravityFields'))
-        pygame.event.pump()
         oldPos = self.scaled_pos
+        if collisions.Point(*oldPos).collides(self.Game.currentScene.GetEntitiesByID('BlackHole')):
+            objs = collisions.Shapes(*self.Game.currentScene.getBlackHoles())
+        else:
+            objs = collisions.Shapes(*self.Game.currentScene.GetEntitiesByLayer('GravityFields'), *self.Game.currentScene.GetEntitiesByID('BlackHole'))
         thisObj = collisions.Point(*oldPos)
         cpoints = objs.closestPointTo(thisObj) # [(i, i.closestPointTo(curObj)) for i in objs]
         if cpoints:
             cpoints.sort(key=lambda x: (thisObj.x-x[0])**2+(thisObj.y-x[1])**2)
             closest = cpoints[0]
             angle = collisions.direction(closest, thisObj)
-            gravity = collisions.pointOnUnitCircle(angle, -1)
+            gravity = collisions.pointOnUnitCircle(angle, -0.5)
         else:
             gravity = [0, 0]
         self.gravity = gravity
         self.handle_accel()
         oldaccel = self.accel
-        outRect, self.accel = thisObj.handleCollisionsAccel(self.accel, self.Game.currentScene.GetEntitiesByLayer('Collisions'), False)
+        outRect, self.accel = thisObj.handleCollisionsAccel(self.accel, self.Game.currentScene.collider(), False)
         mvementLine = collisions.Line(oldPos, outRect)
-        if mvementLine.collides(collisions.Shapes(*self.Game.currentScene.GetEntitiesByID('BlackHole'))):
+        if mvementLine.collides(collisions.Shapes(*[collisions.Circle(i.x, i.y, 1) for i in self.Game.currentScene.getBlackHoles()])):
             self.Game.load_scene(lvl=self.Game.currentScene.lvl)
         if mvementLine.collides(collisions.Shapes(*self.Game.currentScene.GetEntitiesByID('Goal'))):
             if self.Game.currentScene.lvl+1 >= len(self.Game.world.ldtk.levels):
@@ -75,9 +80,6 @@ class PlayerEntity(Ss.BaseEntity):
                 pass
             else:
                 self.collidingDelay += 0.25
-        if self.collided and debug.dotCollisionDebug:
-            pygame.draw.circle(self.Game.currentScene.sur, (255, 0, 0), 
-                               (int(outRect[0]), int(outRect[1])), 5)
         self.pos = self.entity.unscale_pos(outRect)
     
     @property
@@ -105,9 +107,11 @@ class MainGameScene(Ss.BaseScene):
         self.CamDist = 2
         self.CamBounds = [None, None, None, None]
         self.lvl = settings.get('lvl', 0)
-        self.colls = [{}, {}]
+        self.colls = [{}, {}, []]
         self.sur = None
+        self.showingColls = True
         self.last_playerPos = [0, 0]
+        self._collider = None
         for e in self.currentLvl.entities:
             if e.defUid == 7:
                 self.entities.append(PlayerEntity(Game, e)) # The Player
@@ -117,6 +121,42 @@ class MainGameScene(Ss.BaseScene):
             raise Ss.IncorrectLevelError(
                 'Need a player start!'
             )
+    
+    def collider(self):
+        if self._collider is not None:
+            return self._collider
+        outcolls = []
+        for lay in self.Game.currentLvL.layers:
+            if lay.type == 'Tiles':
+                def translate_polygon(poly, translation, sze):
+                    offset = lay.add_offset((translation[0], translation[1]), sze)
+                    return collisions.Polygon(*[(i[0]+offset[0], i[1]+offset[1]) for i in poly])
+                if lay.identifier == 'Planets':
+                    tmpl = ldtk.layer(lay.data, lay.level)
+                    d = lay.tileset.data.copy()
+                    d.update({'relPath': d['relPath'] + '/../colls.png'})
+                    tmpl.tileset = ldtk.Tileset(lay.tileset.fileLoc, d)
+
+                    outcolls.extend(translate_polygon(approximate_polygon(t.getImg()), t.pos, t.getImg().get_size()) for t in tmpl.tiles)
+                else:
+                    cache = {}
+                    for t in lay.tiles:
+                        src = tuple(t.src)
+                        if src not in cache:
+                            cache[src] = approximate_polygon(t.getImg())
+                        grid = t.layer.tileset.tileGridSize
+                        if isinstance(cache[src], collisions.Line):
+                            offset = lay.add_offset((t.pos[0], t.pos[1]), (grid, grid))
+                            outcolls.append(collisions.Line(*[(i[0]+offset[0], i[1]+offset[1]) for i in cache[src]]))
+                        elif isinstance(cache[src], collisions.Point):
+                            offset = lay.add_offset((t.pos[0], t.pos[1]), (grid, grid))
+                            outcolls.append(collisions.Point(cache[src].x+offset[0], cache[src].y+offset[1]))
+                        else:
+                            outcolls.append(translate_polygon(cache[src], t.pos, (grid, grid)))
+            elif lay.type == 'IntGrid':
+                outcolls.extend(self.Game.currentLvL.layers[2].intgrid.getRects([1, 2]))
+        self._collider = collisions.Shapes(*outcolls)
+        return self._collider
     
     def tick(self, evs):
         super().tick(evs)
@@ -149,9 +189,9 @@ class MainGameScene(Ss.BaseScene):
             self.colls[0][typ] = []
             for e in self.currentLvl.entities:
                 if e.layerId == typ:
-                    if e.identifier == 'CircleRegion' or e.identifier == 'BlackHole':
-                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0], e.ScaledPos[1], e.width/2))
-                    elif e.identifier == 'RectRegion':
+                    if 'CircleRegion' in e.identifier or e.identifier == 'BlackHole':
+                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
+                    elif 'RectRegion' in e.identifier:
                         self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
                     elif e.identifier == 'Goal':
                         self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
@@ -162,38 +202,68 @@ class MainGameScene(Ss.BaseScene):
             self.colls[1][typ] = []
             for e in self.currentLvl.entities:
                 if e.identifier == typ:
-                    if e.identifier == 'CircleRegion' or e.identifier == 'BlackHole':
-                        self.colls[1][typ].append(collisions.Circle(e.ScaledPos[0], e.ScaledPos[1], e.width/2))
-                    elif e.identifier == 'RectRegion':
+                    if 'CircleRegion' in e.identifier or e.identifier == 'BlackHole':
+                        self.colls[1][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
+                    elif 'RectRegion' in e.identifier:
                         self.colls[1][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
                     elif e.identifier == 'Goal':
                         self.colls[1][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
         return self.colls[1][typ]
+    
+    def getBlackHoles(self):
+        if self.colls[2] == []:
+            for e in self.currentLvl.entities:
+                if e.identifier == 'BlackHole':
+                    self.colls[2].append(collisions.Point(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2))
+        return self.colls[2]
+    
+    def GetCollEntitiesByLayer(self, typ):
+        if typ not in self.colls[0]:
+            self.colls[0][typ] = []
+            for e in self.currentLvl.entities:
+                if e.layerId == typ:
+                    if 'CircleRegion' in e.identifier:
+                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
+                    elif 'RectRegion' in e.identifier:
+                        self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
+        return self.colls[0][typ]
     
     @property
     def CamPos(self):
         return self.entities[0].scaled_pos
 
     def render(self):
-        if self.sur is not None:
+        if self.sur is not None and debug.showingColls == self.showingColls:
             return self.sur
+        self.showingColls = debug.showingColls
         lvl = self.currentLvl
-        sur = pygame.Surface(lvl.sizePx)
-        sur.fill(self.Game.currentLvL.bgColour)
+        self.sur = pygame.Surface(lvl.sizePx)
+        self.sur.fill(self.Game.currentLvL.bgColour)
+        colls = self.collider()
+        self.sur.blit(self.Game.world.get_pygame(self.lvl), (0, 0))
+        
         for e in lvl.entities:
-            typs = ['Collisions', 'GravityFields']
-            col = (255, 255, 255) if e.layerId not in typs else [(255, 50, 50), (10, 50, 50)][typs.index(e.layerId)]
-            if e.identifier == 'CircleRegion' or e.identifier == 'BlackHole':
-                pygame.draw.circle(sur, col, (e.ScaledPos[0], e.ScaledPos[1]), e.width//2)
-            elif e.identifier == 'RectRegion':
-                pygame.draw.rect(sur, col, (*e.ScaledPos, e.width, e.height))
-            elif e.identifier == 'Goal':
+            if e.identifier == 'BlackHole':
+                pygame.draw.circle(self.sur, (0, 0, 0), (e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2), e.width//2)
+            if e.identifier == 'Goal':
                 # The star shape was made by me which is why it probably doesn't look very good
-                pygame.draw.polygon(sur, (255, 180, 10), [(e.ScaledPos[0]+i[0]*e.width, e.ScaledPos[1]+(1-i[1])*e.height) for i in 
+                pygame.draw.polygon(self.sur, (255, 180, 10), [(e.ScaledPos[0]+i[0]*e.width, e.ScaledPos[1]+(1-i[1])*e.height) for i in 
                                                [(0, 0), (0.5, 0.23), (1, 0), (0.7, 0.35), 
                                                 (1, 0.5), (0.6, 0.6), (0.5, 1), (0.4, 0.6), 
                                                 (0, 0.5), (0.3, 0.35)]])
-        self.sur = sur
+        
+        if self.showingColls:
+            for col, li in (((255, 10, 50), colls), ((10, 50, 50), self.GetCollEntitiesByLayer('GravityFields')), ((255, 255, 255), self.Game.currentScene.getBlackHoles())):
+                for s in li:
+                    if isinstance(s, collisions.Polygon):
+                        pygame.draw.polygon(self.sur, col, s.toPoints(), 1)
+                    if isinstance(s, collisions.Rect):
+                        pygame.draw.rect(self.sur, col, (s.x, s.y, s.w, s.h), 1)
+                    elif isinstance(s, collisions.Circle):
+                        pygame.draw.circle(self.sur, col, (s.x, s.y), s.r, 1)
+                    elif isinstance(s, collisions.Point):
+                        pygame.draw.circle(self.sur, col, (s.x, s.y), 5)
+
         return self.sur
     
     def renderUI(self, win, offset, midp, scale):
@@ -208,6 +278,6 @@ class MainGameScene(Ss.BaseScene):
                             (p[0]+addPos[0], p[1]+addPos[1]), 5)
         self.last_playerPos = (p[0], p[1])
 
-G.load_scene(SplashScreen)
+G.load_scene()#SplashScreen)
 
 G.play(debug=True)
