@@ -145,6 +145,7 @@ class MainGameScene(Ss.BaseScene):
 
                     outcolls.extend(translate_polygon(approximate_polygon(t.getImg()), t.pos, t.getImg().get_size()) for t in tmpl.tiles)
                 else:
+                    outnews = []
                     cache = {}
                     for t in lay.tiles:
                         src = tuple(t.src)
@@ -158,9 +159,14 @@ class MainGameScene(Ss.BaseScene):
                             offset = lay.add_offset((t.pos[0], t.pos[1]), (grid, grid))
                             outcolls.append(collisions.Point(cache[src].x+offset[0], cache[src].y+offset[1]))
                         else:
-                            outcolls.append(translate_polygon(cache[src], t.pos, (grid, grid)))
+                            if all(round(i.tangent(0, (0, 0)), 5)%360 in (90, 270, 180, 0) for i in cache[src].toLines()):
+                                r = translate_polygon(cache[src], t.pos, (grid, grid)).rect()
+                                outnews.append(collisions.Rect(r[0], r[1], r[2]-r[0]+1, r[3]-r[1]+1))
+                            else:
+                                outcolls.append(translate_polygon(cache[src], t.pos, (grid, grid)))
+                    outcolls.extend(collisions.ShapeCombiner.to_rects(*outnews))
             elif lay.type == 'IntGrid':
-                outcolls.extend(self.Game.currentLvL.layers[2].intgrid.getRects([1, 2]))
+                outcolls.extend(collisions.ShapeCombiner.to_rects(*self.Game.currentLvL.layers[2].intgrid.getRects([1, 2])))
         self._collider = collisions.Shapes(*outcolls)
         return self._collider
     
@@ -284,6 +290,6 @@ class MainGameScene(Ss.BaseScene):
                             (p[0]+addPos[0], p[1]+addPos[1]), 5)
         self.last_playerPos = (p[0], p[1])
 
-G.load_scene()#SplashScreen)
+G.load_scene(SplashScreen)
 
 G.play(debug=True)

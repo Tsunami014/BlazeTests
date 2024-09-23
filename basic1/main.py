@@ -59,12 +59,15 @@ class MainGameScene(Ss.BaseScene):
             if e.defUid == 107:
                 self.entities.append(BaseEntity(self, e)) # The Player
                 self.DefaultEntity.append(e)
-                self.entities[0].pos = [e.UnscaledPos[0]+0.5, e.UnscaledPos[1]+0.5]
+                if settings.get('UsePlayerStart', False):
+                    self.entities[0].pos = [e.UnscaledPos[0]+0.5, e.UnscaledPos[1]+0.5]
+                else:
+                    self.entities[0].pos = [settings.get('x', 0.5), settings.get('y', 0.5)]
                 break
         if self.entities == []:
             if self.DefaultEntity != []:
                 self.entities.append(BaseEntity(self, self.DefaultEntity[-1]))
-                self.entities[0].pos = [0.5, 0.5]
+                self.entities[0].pos = [settings.get('x', 0.5), settings.get('y', 0.5)]
             else:
                 raise Ss.IncorrectLevelError(
                     'Need a player start!'
@@ -82,14 +85,17 @@ class MainGameScene(Ss.BaseScene):
     
     def tick(self, evs):
         super().tick(evs)
-        # TODO: Put player in correct position when changing levels
         playere = self.entities[0]
-        for n in self.currentLvl.neighbours:
-            if (playere.scaled_pos[0] >= self.currentLvl.sizePx[0] and n['dir'] == 'e') or \
-                (playere.scaled_pos[0] <= 0 and n['dir'] == 'w') or \
-                (playere.scaled_pos[1] <= 0 and n['dir'] == 'n') or \
-                (playere.scaled_pos[1] >= self.currentLvl.sizePx[1] and n['dir'] == 's'):
-                G.load_scene(lvl=[i.iid for i in self.Game.world.ldtk.levels].index(n['levelIid']))
+        for n in self.currentLvl.neighbours: # TODO: Level offsets
+            nxtLvl = [i.iid for i in self.Game.world.ldtk.levels].index(n['levelIid'])
+            if playere.scaled_pos[0] >= self.currentLvl.sizePx[0] and n['dir'] == 'e':
+                G.load_scene(lvl=nxtLvl, y=playere.pos[1])
+            if playere.scaled_pos[0] <= 0 and n['dir'] == 'w':
+                G.load_scene(lvl=nxtLvl, y=playere.pos[1], x=self.Game.world.get_level(nxtLvl).sizePx[0]/playere.entity.gridSze-0.5)
+            if playere.scaled_pos[1] <= 0 and n['dir'] == 'n':
+                G.load_scene(lvl=nxtLvl, x=playere.pos[0])
+            if playere.scaled_pos[1] >= self.currentLvl.sizePx[1] and n['dir'] == 's':
+                G.load_scene(lvl=nxtLvl, x=playere.pos[0], y=self.Game.world.get_level(nxtLvl).sizePx[1]/playere.entity.gridSze-0.5)
     
     def renderUI(self, win, offset, midp, scale):
         playersze = scale*self.entities[0].entity.gridSze

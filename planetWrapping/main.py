@@ -95,7 +95,7 @@ class MainGameScene(Ss.BaseScene):
             for e in self.currentLvl.entities:
                 if e.layerId == typ:
                     if e.identifier == 'CircleRegion':
-                        self.colls[0][typ].append(collisions.Circle(*e.ScaledPos, e.width/2))
+                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
                     elif e.identifier == 'RectRegion':
                         self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
         return self.colls[0][typ]

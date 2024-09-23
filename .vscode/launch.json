@@ -9,6 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "main.py",
+            "justMyCode": false,
             "console": "integratedTerminal"
         },
         {
