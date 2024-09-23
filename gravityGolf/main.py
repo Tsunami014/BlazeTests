@@ -41,7 +41,8 @@ class PlayerEntity(Ss.BaseEntity):
     
     def __call__(self, keys):
         oldPos = self.scaled_pos
-        if collisions.Point(*oldPos).collides(self.Game.currentScene.GetEntitiesByID('BlackHole')):
+        in_bh = collisions.Point(*oldPos).collides(self.Game.currentScene.GetEntitiesByID('BlackHole'))
+        if in_bh:
             objs = collisions.Shapes(*self.Game.currentScene.getBlackHoles())
         else:
             objs = collisions.Shapes(*self.Game.currentScene.GetEntitiesByLayer('GravityFields'), *self.Game.currentScene.GetEntitiesByID('BlackHole'))
@@ -57,7 +58,7 @@ class PlayerEntity(Ss.BaseEntity):
         self.gravity = gravity
         self.handle_accel()
         oldaccel = self.accel
-        outRect, self.accel = thisObj.handleCollisionsAccel(self.accel, self.Game.currentScene.collider(), False)
+        outRect, self.accel, v = thisObj.handleCollisionsAccel(self.accel, self.Game.currentScene.collider(), False, verbose=True)
         mvementLine = collisions.Line(oldPos, outRect)
         if mvementLine.collides(collisions.Shapes(*[collisions.Circle(i.x, i.y, 1) for i in self.Game.currentScene.getBlackHoles()])):
             self.Game.load_scene(lvl=self.Game.currentScene.lvl)
@@ -67,19 +68,24 @@ class PlayerEntity(Ss.BaseEntity):
             else:
                 self.Game.load_scene(lvl=self.Game.currentScene.lvl+1)
             return
-        newcolliding = oldaccel != self.accel
-        if newcolliding != self.collided:
-            if self.collidingDelay <= 0:
-                self.collided = newcolliding
-            else:
-                self.collidingDelay -= 1
+        if in_bh:
+            self.collided = False
+            self.collidingDelay = 3
+        else:
+            # If you bounced or you were going to be inside a gravity field, whether or not you bounced (so if you did it would still register)
+            newcolliding = v[-1] or collisions.Line(oldPos, (oldPos[0]+oldaccel[0], oldPos[1]+oldaccel[1])).collides(self.Game.currentScene.GetEntitiesByLayer('GravityFields'))
+            if newcolliding != self.collided:
                 if self.collidingDelay <= 0:
                     self.collided = newcolliding
-        else:
-            if self.collidingDelay >= self.defcollideDelay:
-                pass
+                else:
+                    self.collidingDelay -= 1
+                    if self.collidingDelay <= 0:
+                        self.collided = newcolliding
             else:
-                self.collidingDelay += 0.25
+                if self.collidingDelay >= self.defcollideDelay:
+                    pass
+                else:
+                    self.collidingDelay += 0.25
         self.pos = self.entity.unscale_pos(outRect)
     
     @property
