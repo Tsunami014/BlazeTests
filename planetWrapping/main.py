@@ -129,10 +129,10 @@ class MainGameScene(Ss.BaseScene):
                         pygame.draw.circle(self.sur, col, (s.x, s.y), s.r, 1)
         return self.sur
     
-    def renderUI(self, win, offset, midp, scale):
-        pos = self.entities[0].scaled_pos
-        pygame.draw.circle(win, (0, 0, 0), (pos[0]*scale+offset[0], pos[1]*scale+offset[1]), 10)
-        pygame.draw.circle(win, (255, 255, 255), (pos[0]*scale+offset[0], pos[1]*scale+offset[1]), 10, 2)
+    def renderUI(self, win, scaleF):
+        pos = scaleF(self.entities[0].scaled_pos)
+        pygame.draw.circle(win, (0, 0, 0), pos, 10)
+        pygame.draw.circle(win, (255, 255, 255), pos, 10, 2)
 
 G.load_scene()
 

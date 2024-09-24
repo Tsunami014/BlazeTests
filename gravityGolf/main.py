@@ -123,7 +123,7 @@ class MainGameScene(Ss.BaseScene):
         self.bhs = None
         self.sur = None
         self.showingColls = True
-        self.last_playerPos = [0, 0]
+        self.lastScreenPos = [0, 0]
         self._collider = None
         for e in self.currentLvl.entities:
             if e.defUid == 7:
@@ -134,6 +134,7 @@ class MainGameScene(Ss.BaseScene):
             raise Ss.IncorrectLevelError(
                 'Need a player start!'
             )
+        self.lastPos = self.entities[0].pos
     
     def collider(self):
         if self._collider is not None:
@@ -178,6 +179,8 @@ class MainGameScene(Ss.BaseScene):
         return self._collider
     
     def tick(self, evs):
+        if debug.showingColls != self.showingColls:
+            self.sur = None # Force re-render
         super().tick(evs)
         playere = self.entities[0]
         didClick = any(e.type == pygame.MOUSEBUTTONDOWN for e in evs)
@@ -185,7 +188,7 @@ class MainGameScene(Ss.BaseScene):
             if playere.collided:
                 playere.collidingDelay = playere.defcollideDelay
                 playere.collided = False
-                angle = collisions.direction(pygame.mouse.get_pos(), self.last_playerPos)
+                angle = collisions.direction(pygame.mouse.get_pos(), self.lastScreenPos)
                 addPos = collisions.pointOnUnitCircle(angle, -40)
                 def sign(x):
                     if x > 0:
@@ -193,8 +196,8 @@ class MainGameScene(Ss.BaseScene):
                     if x < 0:
                         return -1
                     return 0
-                addAccel = [min(abs(addPos[0]), abs(self.last_playerPos[0]-pygame.mouse.get_pos()[0])/4)*sign(addPos[0]),
-                            min(abs(addPos[1]), abs(self.last_playerPos[1]-pygame.mouse.get_pos()[1])/4)*sign(addPos[1])]
+                addAccel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0])/4)*sign(addPos[0]),
+                            min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1])/4)*sign(addPos[1])]
                 playere.accel[0] += addAccel[0]
                 playere.accel[1] += addAccel[1]
             else:
@@ -213,19 +216,19 @@ class MainGameScene(Ss.BaseScene):
     
     @property
     def CamPos(self):
-        return self.entities[0].scaled_pos
+        lp = self.lastPos
+        self.lastPos = self.entities[0].scaled_pos
+        return lp
 
-    def render(self):
-        if self.sur is not None and debug.showingColls == self.showingColls:
-            return self.sur
+    def renderMap(self):
         self.showingColls = debug.showingColls
-        lvl = self.currentLvl
-        self.sur = pygame.Surface(lvl.sizePx)
+        self.sur = pygame.Surface(self.currentLvl.sizePx)
         self.sur.fill(self.Game.currentLvL.bgColour)
         colls = self.collider()
         self.sur.blit(self.Game.world.get_pygame(self.lvl), (0, 0))
         
-        for e in lvl.entities:
+        # TODO: Render shape in main library
+        for e in self.currentLvl.entities:
             if e.identifier == 'BlackHole':
                 pygame.draw.circle(self.sur, (0, 0, 0), (e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2), e.width//2)
             if e.identifier == 'Goal':
@@ -246,20 +249,25 @@ class MainGameScene(Ss.BaseScene):
                         pygame.draw.circle(self.sur, col, (s.x, s.y), s.r, 1)
                     elif isinstance(s, collisions.Point):
                         pygame.draw.circle(self.sur, col, (s.x, s.y), 5)
-
-        return self.sur
     
-    def renderUI(self, win, offset, midp, scale):
-        pos = self.entities[0].scaled_pos
-        p = (pos[0]*scale+offset[0], pos[1]*scale+offset[1])
+    def renderUI(self, win, scalef):
+        p = scalef(self.entities[0].scaled_pos)
         pygame.draw.circle(win, (0, 0, 0), (p[0], p[1]), 10)
         pygame.draw.circle(win, (255, 255, 255), (p[0], p[1]), 10, 2)
         if self.entities[0].collided:
-            angle = collisions.direction(pygame.mouse.get_pos(), self.last_playerPos)
+            angle = collisions.direction(pygame.mouse.get_pos(), self.lastScreenPos)
             addPos = collisions.pointOnUnitCircle(angle, -200)
+            def sign(x):
+                if x > 0:
+                    return 1
+                if x < 0:
+                    return -1
+                return 0
+            addAccel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0]))*sign(addPos[0]),
+                        min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1]))*sign(addPos[1])]
             pygame.draw.line(win, (255, 155, 155), (p[0], p[1]), 
-                            (p[0]+addPos[0], p[1]+addPos[1]), 5)
-        self.last_playerPos = (p[0], p[1])
+                            (p[0]+addAccel[0], p[1]+addAccel[1]), 5)
+        self.lastScreenPos = (p[0], p[1])
 
 G.load_scene(SplashScreen)
 

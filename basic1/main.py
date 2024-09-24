@@ -76,12 +76,6 @@ class MainGameScene(Ss.BaseScene):
     @property
     def CamPos(self):
         return self.entities[0].scaled_pos
-
-    def render(self):
-        if self.sur is not None:
-            return self.sur
-        self.sur = self.Game.world.get_pygame(self.lvl)
-        return self.sur
     
     def tick(self, evs):
         super().tick(evs)
@@ -97,10 +91,10 @@ class MainGameScene(Ss.BaseScene):
             if playere.scaled_pos[1] >= self.currentLvl.sizePx[1] and n['dir'] == 's':
                 G.load_scene(lvl=nxtLvl, x=playere.pos[0], y=self.Game.world.get_level(nxtLvl).sizePx[1]/playere.entity.gridSze-0.5)
     
-    def renderUI(self, win, offset, midp, scale):
-        playersze = scale*self.entities[0].entity.gridSze
-        pos = self.entities[0].scaled_pos
-        r = (pos[0]*scale+offset[0]-(playersze//2), pos[1]*scale+offset[1]-(playersze//2), playersze, playersze)
+    def renderUI(self, win, scaleF):
+        playersze = self.CamDist*self.entities[0].entity.gridSze
+        pos = scaleF(self.entities[0].scaled_pos)
+        r = (pos[0]-(playersze//2), pos[1]-(playersze//2), playersze, playersze)
         pygame.draw.rect(win, (0, 0, 0), r, border_radius=2)
         pygame.draw.rect(win, (255, 255, 255), r, width=5, border_radius=2)
 
