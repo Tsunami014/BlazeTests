@@ -20,13 +20,19 @@ class DebugCommands:
 
 debug = DebugCommands(G)
 
+def CollProcessor(e):
+    if e.identifier == 'CircleRegion':
+        return collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2)
+    elif e.identifier == 'RectRegion':
+        return collisions.Rect(*e.ScaledPos, e.width, e.height)
+
 class BaseEntity(Ss.BaseEntity):
     def __init__(self, Game, entity):
         super().__init__(Game, entity)
         self.max_accel = [3, 3]
     
     def __call__(self, evs):
-        objs = collisions.Shapes(*self.Game.currentScene.GetCollEntitiesByLayer('GravityFields'))
+        objs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollProcessor))
         oldPos = self.scaled_pos
         thisObj = collisions.Point(*oldPos)
         cpoints = [(i.closestPointTo(thisObj), i) for i in objs]
@@ -89,17 +95,6 @@ class MainGameScene(Ss.BaseScene):
                 'Need a player start!'
             )
     
-    def GetCollEntitiesByLayer(self, typ):
-        if typ not in self.colls[0]:
-            self.colls[0][typ] = []
-            for e in self.currentLvl.entities:
-                if e.layerId == typ:
-                    if e.identifier == 'CircleRegion':
-                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
-                    elif e.identifier == 'RectRegion':
-                        self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
-        return self.colls[0][typ]
-    
     @property
     def CamPos(self):
         return self.entities[0].scaled_pos
@@ -114,7 +109,7 @@ class MainGameScene(Ss.BaseScene):
         tmpl.tileset = ldtk.Tileset(lay.tileset.fileLoc, d)
         def translate_polygon(poly, translation):
             return collisions.Polygon(*[(i[0]+translation[0], i[1]+translation[1]) for i in poly.toPoints()])
-        self._collider = collisions.Shapes(*[translate_polygon(approximate_polygon(t.getImg()), t.pos) for t in tmpl.tiles], *self.GetCollEntitiesByLayer('Entities'))
+        self._collider = collisions.Shapes(*[translate_polygon(approximate_polygon(t.getImg()), t.pos) for t in tmpl.tiles], *self.Game.currentLvL.GetEntitiesByLayer('Entities', CollProcessor))
         return self._collider
 
     def render(self):
@@ -124,7 +119,7 @@ class MainGameScene(Ss.BaseScene):
         self.sur = self.Game.world.get_pygame(self.lvl)
         if self.showingColls:
             colls = self.collider()
-            for col, li in (((255, 10, 50), colls), ((10, 50, 255), self.GetCollEntitiesByLayer('GravityFields'))):
+            for col, li in (((255, 10, 50), colls), ((10, 50, 255), self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollProcessor))):
                 for s in li:
                     if isinstance(s, collisions.Polygon):
                         pygame.draw.polygon(self.sur, col, s.toPoints(), 1)
