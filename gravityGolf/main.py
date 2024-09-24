@@ -27,6 +27,12 @@ class DebugCommands:
 
 debug = DebugCommands(G)
 
+def CollisionProcessor(e):
+    if 'CircleRegion' in e.identifier or e.identifier == 'BlackHole':
+        return collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2)
+    elif 'RectRegion' in e.identifier or e.identifier == 'Goal':
+        return collisions.Rect(*e.ScaledPos, e.width, e.height)
+
 class PlayerEntity(Ss.BaseEntity):
     def __init__(self, Game, entity):
         super().__init__(Game, entity)
@@ -41,11 +47,12 @@ class PlayerEntity(Ss.BaseEntity):
     
     def __call__(self, keys):
         oldPos = self.scaled_pos
-        in_bh = collisions.Point(*oldPos).collides(self.Game.currentScene.GetEntitiesByID('BlackHole'))
+        in_bh = collisions.Point(*oldPos).collides(self.Game.currentLvL.GetEntitiesByID('BlackHole', CollisionProcessor))
         if in_bh:
             objs = collisions.Shapes(*self.Game.currentScene.getBlackHoles())
         else:
-            objs = collisions.Shapes(*self.Game.currentScene.GetEntitiesByLayer('GravityFields'), *self.Game.currentScene.GetEntitiesByID('BlackHole'))
+            objs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor), 
+                                     *self.Game.currentLvL.GetEntitiesByID('BlackHole', CollisionProcessor))
         thisObj = collisions.Point(*oldPos)
         cpoints = objs.closestPointTo(thisObj) # [(i, i.closestPointTo(curObj)) for i in objs]
         if cpoints:
@@ -62,7 +69,7 @@ class PlayerEntity(Ss.BaseEntity):
         mvementLine = collisions.Line(oldPos, outRect)
         if mvementLine.collides(collisions.Shapes(*[collisions.Circle(i.x, i.y, 1) for i in self.Game.currentScene.getBlackHoles()])):
             self.Game.load_scene(lvl=self.Game.currentScene.lvl)
-        if mvementLine.collides(collisions.Shapes(*self.Game.currentScene.GetEntitiesByID('Goal'))):
+        if mvementLine.collides(collisions.Shapes(*self.Game.currentLvL.GetEntitiesByID('Goal', CollisionProcessor))):
             if self.Game.currentScene.lvl+1 >= len(self.Game.world.ldtk.levels):
                 self.Game.load_scene(SplashScreen)
             else:
@@ -73,7 +80,7 @@ class PlayerEntity(Ss.BaseEntity):
             self.collidingDelay = 3
         else:
             # If you bounced or you were going to be inside a gravity field, whether or not you bounced (so if you did it would still register)
-            newcolliding = v[-1] or collisions.Line(oldPos, (oldPos[0]+oldaccel[0], oldPos[1]+oldaccel[1])).collides(self.Game.currentScene.GetEntitiesByLayer('GravityFields'))
+            newcolliding = v[-1] or collisions.Line(oldPos, (oldPos[0]+oldaccel[0], oldPos[1]+oldaccel[1])).collides(self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor))
             if newcolliding != self.collided:
                 if self.collidingDelay <= 0:
                     self.collided = newcolliding
@@ -113,7 +120,7 @@ class MainGameScene(Ss.BaseScene):
         self.CamDist = 2
         self.CamBounds = [None, None, None, None]
         self.lvl = settings.get('lvl', 0)
-        self.colls = [{}, {}, []]
+        self.bhs = None
         self.sur = None
         self.showingColls = True
         self.last_playerPos = [0, 0]
@@ -195,50 +202,14 @@ class MainGameScene(Ss.BaseScene):
                     playere.clicked = playere.defClickDelay
                 else:
                     playere.clicked -= 1
-    
-    def GetEntitiesByLayer(self, typ): # TODO: Move into pyLDtk
-        if typ not in self.colls[0]:
-            self.colls[0][typ] = []
-            for e in self.currentLvl.entities:
-                if e.layerId == typ:
-                    if 'CircleRegion' in e.identifier or e.identifier == 'BlackHole':
-                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
-                    elif 'RectRegion' in e.identifier:
-                        self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
-                    elif e.identifier == 'Goal':
-                        self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
-        return self.colls[0][typ]
 
-    def GetEntitiesByID(self, typ):
-        if typ not in self.colls[1]:
-            self.colls[1][typ] = []
-            for e in self.currentLvl.entities:
-                if e.identifier == typ:
-                    if 'CircleRegion' in e.identifier or e.identifier == 'BlackHole':
-                        self.colls[1][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
-                    elif 'RectRegion' in e.identifier:
-                        self.colls[1][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
-                    elif e.identifier == 'Goal':
-                        self.colls[1][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
-        return self.colls[1][typ]
-    
     def getBlackHoles(self):
-        if self.colls[2] == []:
+        if self.bhs is None:
+            self.bhs = []
             for e in self.currentLvl.entities:
                 if e.identifier == 'BlackHole':
-                    self.colls[2].append(collisions.Point(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2))
-        return self.colls[2]
-    
-    def GetCollEntitiesByLayer(self, typ):
-        if typ not in self.colls[0]:
-            self.colls[0][typ] = []
-            for e in self.currentLvl.entities:
-                if e.layerId == typ:
-                    if 'CircleRegion' in e.identifier:
-                        self.colls[0][typ].append(collisions.Circle(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2, e.width/2))
-                    elif 'RectRegion' in e.identifier:
-                        self.colls[0][typ].append(collisions.Rect(*e.ScaledPos, e.width, e.height))
-        return self.colls[0][typ]
+                    self.bhs.append(collisions.Point(e.ScaledPos[0]+e.width/2, e.ScaledPos[1]+e.height/2))
+        return self.bhs
     
     @property
     def CamPos(self):
@@ -265,7 +236,7 @@ class MainGameScene(Ss.BaseScene):
                                                 (0, 0.5), (0.3, 0.35)]])
         
         if self.showingColls:
-            for col, li in (((255, 10, 50), colls), ((10, 50, 50), self.GetCollEntitiesByLayer('GravityFields')), ((255, 255, 255), self.Game.currentScene.getBlackHoles())):
+            for col, li in (((255, 10, 50), colls), ((10, 50, 50), self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor)), ((255, 255, 255), self.getBlackHoles())):
                 for s in li:
                     if isinstance(s, collisions.Polygon):
                         pygame.draw.polygon(self.sur, col, s.toPoints(), 1)
