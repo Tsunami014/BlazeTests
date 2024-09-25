@@ -15,5 +15,5 @@ imgs, szes = wrap.wrapWorld(world)
 
 pth = os.path.dirname(__file__) + "/"
 
-wrap.save(imgs[0], pth+"out/out.png", max(szes))
-wrap.save(imgs[1], pth+"out/colls.png", max(szes))
+wrap.save(imgs[0], pth+"out/out.png", szes)
+wrap.save(imgs[1], pth+"out/colls.png", szes)

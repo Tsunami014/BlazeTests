@@ -149,7 +149,7 @@ class MainGameScene(Ss.BaseScene):
                 def translate_polygon(poly, translation, sze):
                     offset = lay.add_offset((translation[0], translation[1]), sze)
                     return collisions.Polygon(*[(i[0]+offset[0], i[1]+offset[1]) for i in poly])
-                if lay.identifier == 'Planets':
+                if 'Planets' in lay.identifier:
                     tmpl = ldtk.layer(lay.data, lay.level)
                     d = lay.tileset.data.copy()
                     d.update({'relPath': d['relPath'] + '/../colls.png'})
