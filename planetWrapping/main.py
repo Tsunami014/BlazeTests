@@ -29,7 +29,7 @@ def CollProcessor(e):
 class BaseEntity(Ss.BaseEntity):
     def __init__(self, Game, entity):
         super().__init__(Game, entity)
-        self.max_accel = [3, 3]
+        self.max_speed = 15
     
     def __call__(self, evs):
         objs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollProcessor))
@@ -47,28 +47,22 @@ class BaseEntity(Ss.BaseEntity):
             gravity = [0, 0]
             tan = 0
         self.gravity = gravity
-        prevaccel = self.accel
-        self.accel = [0, 0]
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_RIGHT] ^ keys[pygame.K_LEFT]:
-            if keys[pygame.K_RIGHT]:
-                self.accel[0] += self.accel_amnt[0][0]
-            elif keys[pygame.K_LEFT]:
-                self.accel[0] -= self.accel_amnt[0][0]
-        else:
-            if self.accel[0] < -self.accel_amnt[1][0]:
-                self.accel[0] += self.accel_amnt[1][0]
-            elif self.accel[0] > self.accel_amnt[1][0]:
-                self.accel[0] -= self.accel_amnt[1][0]
-            else:
-                self.accel[0] = 0
-        if any(e.type == pygame.KEYDOWN and e.key == pygame.K_UP for e in evs):
-            self.accel[1] = -10
-        self.accel = collisions.rotateBy0(self.accel, tan-90)
-        self.accel = [self.accel[0]+prevaccel[0], self.accel[1]+prevaccel[1]]
-        self.handle_accel()
+        jmp = any(e.type == pygame.KEYDOWN and e.key == pygame.K_UP for e in evs)
+        if keys[pygame.K_LEFT] ^ keys[pygame.K_RIGHT] or jmp:
+            offs = [(0, 0)]
+            if jmp:
+                offs.append(collisions.rotateBy0((0, -15), tan-90))
+            if keys[pygame.K_LEFT]:
+                offs.append(collisions.rotateBy0((-self.acceleration, 0), tan-90))
+            elif keys[pygame.K_RIGHT]:
+                offs.append(collisions.rotateBy0((self.acceleration, 0), tan-90))
+            off = (sum(i[0] for i in offs), sum(i[1] for i in offs))
+            self.target_velocity = [self.target_velocity[0] + off[0],
+                                    self.target_velocity[1] + off[1]]
+        self.apply_physics()
         colls = self.Game.currentScene.collider()
-        outRect, self.accel = thisObj.handleCollisionsAccel(self.accel, colls, False)
+        outRect, self.velocity = thisObj.handleCollisionsVel(self.velocity, colls, False)
         self.pos = self.entity.unscale_pos(outRect)
     
     @property

@@ -21,21 +21,21 @@ debug = DebugCommands(G)
 class BaseEntity(Ss.BaseEntity):
     def __init__(self, Game, e):
         super().__init__(Game, e)
-        self.accel_amnt = [[0.2, 0.2], [0.05, 0.05]]
-        self.gravity = [0, 0.1]
+        self.acceleration = 1  # Rate of acceleration
+        self.gravity = [0, 0.125]
     
     def __call__(self, evs):
         self.handle_keys()
-        self.handle_accel()
+        self.apply_physics()
         colls = self.Game.currentLvl.layers[1].intgrid.getRects(1)
         #for i in colls:
         #    i.bounciness = 1
         if debug.collTyp:
-            outRect, self.accel = collisions.Point(self.scaled_pos[0], self.scaled_pos[1]).handleCollisionsAccel(self.accel, colls, False)
+            outRect, self.velocity = collisions.Point(self.scaled_pos[0], self.scaled_pos[1]).handleCollisionsVel(self.velocity, colls, False)
             outUnscaled = self.entity.unscale_pos(outRect)
         else:
             self.pos = [self.pos[0]-0.45, self.pos[1]-0.45]
-            outRect, self.accel = collisions.Rect(self.scaled_pos[0], self.scaled_pos[1], self.entity.gridSze*0.9, self.entity.gridSze*0.9).handleCollisionsAccel(self.accel, colls, False)
+            outRect, self.velocity = collisions.Rect(self.scaled_pos[0], self.scaled_pos[1], self.entity.gridSze*0.9, self.entity.gridSze*0.9).handleCollisionsVel(self.velocity, colls, False)
             outUnscaled = self.entity.unscale_pos((outRect.x, outRect.y))
             outUnscaled = [outUnscaled[0]+0.45, outUnscaled[1]+0.45]
         self.pos = outUnscaled

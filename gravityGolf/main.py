@@ -37,9 +37,13 @@ class PlayerEntity(Ss.BaseEntity):
     def __init__(self, Game, entity):
         super().__init__(Game, entity)
         self.collided = False
-        self.accel_amnt = [[2.5, 2.5], [0.5, 0.5]]
-        self.max_accel = [30, 30]
-        #self.friction = [0.1, 0.1]
+
+        self.max_speed = 30  # Maximum speed the entity can reach
+        self.acceleration = 7  # Rate of acceleration
+        self.friction = 0.2  # Friction to slow down the entity
+        self.decell = 0.1
+        #self.lerp_factor = 0.1  # Factor for smooth interpolation
+
         self.defcollideDelay = 3
         self.collidingDelay = self.defcollideDelay
         self.defClickDelay = 3
@@ -63,9 +67,9 @@ class PlayerEntity(Ss.BaseEntity):
         else:
             gravity = [0, 0]
         self.gravity = gravity
-        self.handle_accel()
-        oldaccel = self.accel
-        outRect, self.accel, v = thisObj.handleCollisionsAccel(self.accel, self.Game.currentScene.collider(), False, verbose=True)
+        self.apply_physics()
+        oldvel = self.velocity
+        outRect, self.velocity, v = thisObj.handleCollisionsVel(self.velocity, self.Game.currentScene.collider(), False, verbose=True)
         mvementLine = collisions.Line(oldPos, outRect)
         if mvementLine.collides(collisions.Shapes(*[collisions.Circle(i.x, i.y, 1) for i in self.Game.currentScene.getBlackHoles()])):
             self.Game.load_scene(lvl=self.Game.currentScene.lvl)
@@ -80,7 +84,7 @@ class PlayerEntity(Ss.BaseEntity):
             self.collidingDelay = 3
         else:
             # If you bounced or you were going to be inside a gravity field, whether or not you bounced (so if you did it would still register)
-            newcolliding = v[-1] or collisions.Line(oldPos, (oldPos[0]+oldaccel[0], oldPos[1]+oldaccel[1])).collides(self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor))
+            newcolliding = v[-1] or collisions.Line(oldPos, (oldPos[0]+oldvel[0], oldPos[1]+oldvel[1])).collides(self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor))
             if newcolliding != self.collided:
                 if self.collidingDelay <= 0:
                     self.collided = newcolliding
@@ -189,17 +193,19 @@ class MainGameScene(Ss.BaseScene):
                 playere.collidingDelay = playere.defcollideDelay
                 playere.collided = False
                 angle = collisions.direction(pygame.mouse.get_pos(), self.lastScreenPos)
-                addPos = collisions.pointOnUnitCircle(angle, -40)
+                addPos = collisions.pointOnUnitCircle(angle, -30)
                 def sign(x):
                     if x > 0:
                         return 1
                     if x < 0:
                         return -1
                     return 0
-                addAccel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0])/4)*sign(addPos[0]),
+                addVel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0])/4)*sign(addPos[0]),
                             min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1])/4)*sign(addPos[1])]
-                playere.accel[0] += addAccel[0]
-                playere.accel[1] += addAccel[1]
+                playere.velocity = [playere.velocity[0] + addVel[0]/4,
+                                    playere.velocity[1] + addVel[1]/4]
+                playere.target_velocity = [playere.target_velocity[0] + addVel[0],
+                                           playere.target_velocity[1] + addVel[1]]
             else:
                 if didClick:
                     playere.clicked = playere.defClickDelay
@@ -263,10 +269,10 @@ class MainGameScene(Ss.BaseScene):
                 if x < 0:
                     return -1
                 return 0
-            addAccel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0]))*sign(addPos[0]),
+            addVel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0]))*sign(addPos[0]),
                         min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1]))*sign(addPos[1])]
             pygame.draw.line(win, (255, 155, 155), (p[0], p[1]), 
-                            (p[0]+addAccel[0], p[1]+addAccel[1]), 5)
+                            (p[0]+addVel[0], p[1]+addVel[1]), 5)
         self.lastScreenPos = (p[0], p[1])
 
 G.load_scene(SplashScreen)
