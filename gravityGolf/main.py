@@ -178,7 +178,7 @@ class MainGameScene(Ss.BaseScene):
                                 outcolls.append(translate_polygon(cache[src], t.pos, (grid, grid)))
                     outcolls.extend(collisions.ShapeCombiner.to_rects(*outnews))
             elif lay.type == 'IntGrid':
-                outcolls.extend(collisions.ShapeCombiner.to_rects(*self.Game.currentLvL.layers[2].intgrid.getRects([1, 2])))
+                outcolls.extend(lay.intgrid.getRects([1, 2]))
         self._collider = collisions.Shapes(*outcolls)
         return self._collider
     
