@@ -11,7 +11,30 @@ from BlazeSudio.utils import wrap
 
 world = world.World("./planets.ldtk")
 
-imgs, szes = wrap.wrapWorld(world)
+imgs = [[], []]
+szes = []
+for lvl in range(len(world.ldtk.levels)):
+    Ro = None
+    Ri = None
+    size = 128
+    settingsExists = False
+    for e in world.ldtk.levels[lvl].entities:
+        if e.identifier == 'Settings':
+            settingsExists = True
+            for i in e.fieldInstances:
+                if i['__identifier'] == 'Ro':
+                    Ro = i['__value'] or Ro
+                if i['__identifier'] == 'Ri':
+                    Ri = i['__value'] or Ri
+                if i['__identifier'] == 'size':
+                    size = i['__value'] or size
+    if not settingsExists:
+        continue
+    szes.append(size)
+
+    i1, i2 = wrap.wrapLevel(world, lvl)
+    imgs[0].append(i1)
+    imgs[1].append(i2)
 
 pth = os.path.dirname(__file__) + "/"
 
