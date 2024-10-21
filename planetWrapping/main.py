@@ -2,11 +2,13 @@ from BlazeSudio import ldtk
 from BlazeSudio.Game import Game
 from BlazeSudio import collisions
 import BlazeSudio.Game.statics as Ss
+from BlazeSudio.graphics import GUI
 from BlazeSudio.utils import approximate_polygon
 import pygame
 
 G = Game()
 G.load_map("./main.ldtk")
+G.UILayer.add('Toasts')
 
 class DebugCommands:
     def __init__(self, Game):
@@ -16,7 +18,7 @@ class DebugCommands:
     
     def toggleColls(self):
         self.showingColls = not self.showingColls
-        self.Game.G.Toast(('Showing' if self.showingColls else 'Not showing') + ' collisions')
+        self.Game.UILayer['Toasts'].append(GUI.Toast(self.Game.G, ('Showing' if self.showingColls else 'Not showing') + ' collisions'))
 
 debug = DebugCommands(G)
 

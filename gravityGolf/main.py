@@ -2,13 +2,13 @@ from BlazeSudio import ldtk
 from BlazeSudio.Game import Game
 from BlazeSudio import collisions
 import BlazeSudio.Game.statics as Ss
-from BlazeSudio.graphics import options as GO
+from BlazeSudio.graphics import GUI, options as GO
 from BlazeSudio.utils import approximate_polygon
 import pygame
 
 G = Game()
 G.load_map("./levels.ldtk")
-# TODO: A more uniform way to access things (e.g. the current level)
+G.UILayer.add('Toasts')
 
 class DebugCommands:
     def __init__(self, Game):
@@ -23,7 +23,7 @@ class DebugCommands:
     
     def toggleColls(self):
         self.showingColls = not self.showingColls
-        self.Game.G.Toast(('Showing' if self.showingColls else 'Not showing') + ' collisions')
+        self.Game.UILayer['Toasts'].append(GUI.Toast(self.Game.G, ('Showing' if self.showingColls else 'Not showing') + ' collisions'))
 
 debug = DebugCommands(G)
 
@@ -105,16 +105,19 @@ class PlayerEntity(Ss.BaseEntity):
 
 class SplashScreen(Ss.SkeletonScene):
     useRenderer = False
+    lvl = 0
     def __init__(self, Game, **settings):
         super().__init__(Game, **settings)
         self.rendered = False
     def render(self):
         if not self.rendered:
-            graphic = self.Game.G
-            graphic.bgcol = self.Game.world.get_level(0).bgColour
-            graphic.add_empty_space(GO.PCTOP, 0, 30)
-            graphic.add_text('Gravity golf!', GO.CWHITE, GO.PCTOP, GO.FTITLE)
-            graphic.add_button('Play!!!', GO.CGREEN, GO.PCCENTER, callback=lambda x: self.Game.load_scene())
+            lay = self.Game.UILayer
+            G = self.Game.G
+            G.bgcol = self.Game.world.get_level(0).bgColour
+            lay.add('UI')
+            lay['UI'].append(GUI.Empty(G, GO.PCTOP, (0, 30)))
+            lay['UI'].append(GUI.Text(G, GO.PCTOP, 'Gravity golf!', GO.CWHITE, GO.FTITLE))
+            lay['UI'].append(GUI.Button(G, GO.PCCENTER, GO.CGREEN, 'Play!!!', func=lambda: self.Game.load_scene()))
             self.rendered = True
 
 @G.DefaultSceneLoader
@@ -148,7 +151,7 @@ class MainGameScene(Ss.BaseScene):
             if lay.type == 'Tiles':
                 def translate_polygon(poly, translation, sze):
                     offset = lay.add_offset((translation[0], translation[1]), sze)
-                    return collisions.Polygon(*[(i[0]+offset[0], i[1]+offset[1]) for i in poly])
+                    return collisions.ShapeCombiner.pointsToShape(*[(i[0]+offset[0], i[1]+offset[1]) for i in poly.toPoints()])
                 if 'Planets' in lay.identifier:
                     tmpl = ldtk.layer(lay.data, lay.level)
                     d = lay.tileset.data.copy()
@@ -176,7 +179,7 @@ class MainGameScene(Ss.BaseScene):
                                 outnews.append(collisions.Rect(r[0], r[1], r[2]-r[0]+1, r[3]-r[1]+1))
                             else:
                                 outcolls.append(translate_polygon(cache[src], t.pos, (grid, grid)))
-                    outcolls.extend(collisions.ShapeCombiner.to_rects(*outnews))
+                    outcolls.extend(collisions.ShapeCombiner.combineRects(*outnews))
             elif lay.type == 'IntGrid':
                 outcolls.extend(lay.intgrid.getRects([1, 2]))
         self._collider = collisions.Shapes(*outcolls)

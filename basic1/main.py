@@ -1,10 +1,12 @@
 from BlazeSudio.Game import Game
-from BlazeSudio.collisions import collisions
+from BlazeSudio.graphics import GUI
+from BlazeSudio import collisions
 import BlazeSudio.Game.statics as Ss
 import pygame
 
 G = Game()
 G.load_map("./world.ldtk")
+G.UILayer.add('Toasts')
 
 class DebugCommands: # TODO: Make this not floating around as a global variable
     def __init__(self, Game):
@@ -14,7 +16,7 @@ class DebugCommands: # TODO: Make this not floating around as a global variable
     
     def toggleColls(self):
         self.collTyp = not self.collTyp
-        self.Game.G.Toast('Changed to '+('point' if self.collTyp else 'box') + ' collisions')
+        self.Game.UILayer['Toasts'].append(GUI.Toast(self.Game.G, 'Changed to '+('point' if self.collTyp else 'box') + ' collisions'))
 
 debug = DebugCommands(G)
 
