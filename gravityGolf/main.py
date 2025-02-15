@@ -5,25 +5,25 @@ import BlazeSudio.Game.statics as Ss
 from BlazeSudio.graphics import GUI, options as GO
 from BlazeSudio.utils import approximate_polygon
 import pygame
+import math
 
 G = Game()
 G.load_map("./levels.ldtk")
-G.UILayer.add('Toasts')
 
 class DebugCommands:
     def __init__(self, Game):
         self.Game = Game
-        Game.AddCommand('/load', 'Load any level', lambda x: Game.load_scene(lvl=int(x[0])))
-        Game.AddCommand('/next', 'Load the next level', lambda: Game.load_scene(lvl=Game.currentScene.lvl+1))
-        Game.AddCommand('/prev', 'Load the previous level', lambda: Game.load_scene(lvl=Game.currentScene.lvl-1))
-        Game.AddCommand('/splash', 'Go back to the splash screen', lambda: Game.load_scene(SplashScreen))
-        Game.AddCommand('/reload', 'Reload the current level', lambda: Game.load_scene(lvl=Game.currentScene.lvl))
+        Game.AddCommand('load', '/load lvl: Load any level', lambda x: Game.load_scene(lvl=int(x[0])))
+        Game.AddCommand('next', '/next ...: Load the next level', lambda *args: Game.load_scene(lvl=Game.currentScene.lvl+1))
+        Game.AddCommand('prev', '/prev ...: Load the previous level', lambda *args: Game.load_scene(lvl=Game.currentScene.lvl-1))
+        Game.AddCommand('splash', '/splash ...: Go back to the splash screen', lambda *args: Game.load_scene(SplashScreen))
+        Game.AddCommand('reload', '/reload ...: Reload the current level', lambda *args: Game.load_scene(lvl=Game.currentScene.lvl))
         self.showingColls = False
-        self.Game.AddCommand('/colls', 'Toggle collision debug', self.toggleColls)
+        self.Game.AddCommand('colls', '/colls ...: Toggle collision debug', self.toggleColls)
     
-    def toggleColls(self):
+    def toggleColls(self, *args):
         self.showingColls = not self.showingColls
-        self.Game.UILayer['Toasts'].append(GUI.Toast(self.Game.G, ('Showing' if self.showingColls else 'Not showing') + ' collisions'))
+        self.Game.UILayer.append(GUI.Toast(self.Game, ('Showing' if self.showingColls else 'Not showing') + ' collisions'))
 
 debug = DebugCommands(G)
 
@@ -38,11 +38,8 @@ class PlayerEntity(Ss.BaseEntity):
         super().__init__(Game, entity)
         self.collided = False
 
-        self.max_speed = 30  # Maximum speed the entity can reach
-        self.acceleration = 7  # Rate of acceleration
-        self.friction = 0.2  # Friction to slow down the entity
-        self.decell = 0.1
-        #self.lerp_factor = 0.1  # Factor for smooth interpolation
+        self.max_speed = 20
+        self.friction = 0.5
 
         self.defcollideDelay = 3
         self.collidingDelay = self.defcollideDelay
@@ -51,27 +48,25 @@ class PlayerEntity(Ss.BaseEntity):
     
     def __call__(self, keys):
         oldPos = self.scaled_pos
-        in_bh = collisions.Point(*oldPos).collides(self.Game.currentLvL.GetEntitiesByID('BlackHole', CollisionProcessor))
+        bhs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByID('BlackHole', CollisionProcessor))
+        in_bh = collisions.Point(*oldPos).collides(bhs)
         if in_bh:
-            objs = collisions.Shapes(*self.Game.currentScene.getBlackHoles())
+            objs, bhs = collisions.Shapes(), collisions.Shapes(*self.Game.currentScene.getBlackHoles())
         else:
-            objs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor), 
-                                     *self.Game.currentLvL.GetEntitiesByID('BlackHole', CollisionProcessor))
+            objs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollisionProcessor))
         thisObj = collisions.Point(*oldPos)
-        cpoints = objs.closestPointTo(thisObj) # [(i, i.closestPointTo(curObj)) for i in objs]
-        if cpoints:
-            cpoints.sort(key=lambda x: (thisObj.x-x[0])**2+(thisObj.y-x[1])**2)
-            closest = cpoints[0]
-            angle = collisions.direction(closest, thisObj)
-            gravity = collisions.pointOnUnitCircle(angle, -0.5)
-        else:
-            gravity = [0, 0]
-        self.gravity = gravity
+
+        closests = [li.closestPointTo(thisObj) for li in (objs, bhs)]
+        ds = [math.hypot(p[0]-thisObj.x, p[1]-thisObj.y) if p is not None else float('inf') for p in closests]
+        closestIdx = 0 if ds[0] < ds[1] else 1
+        angle = collisions.direction(closests[closestIdx], thisObj)
+        strength = [8, 15][closestIdx]
+        self.gravity = collisions.pointOnCircle(angle, -strength)
         self.apply_physics()
         oldvel = self.velocity
         outRect, self.velocity, v = thisObj.handleCollisionsVel(self.velocity, self.Game.currentScene.collider(), False, verbose=True)
         mvementLine = collisions.Line(oldPos, outRect)
-        if mvementLine.collides(collisions.Shapes(*[collisions.Circle(i.x, i.y, 1) for i in self.Game.currentScene.getBlackHoles()])):
+        if mvementLine.collides(collisions.Shapes(*[collisions.Circle(i.x, i.y, 7) for i in self.Game.currentScene.getBlackHoles()])):
             self.Game.load_scene(lvl=self.Game.currentScene.lvl)
         if mvementLine.collides(collisions.Shapes(*self.Game.currentLvL.GetEntitiesByID('Goal', CollisionProcessor))):
             if self.Game.currentScene.lvl+1 >= len(self.Game.world.ldtk.levels):
@@ -112,25 +107,24 @@ class SplashScreen(Ss.SkeletonScene):
     def render(self):
         if not self.rendered:
             lay = self.Game.UILayer
-            G = self.Game.G
-            G.bgcol = self.Game.world.get_level(0).bgColour
-            lay.add('UI')
-            lay['UI'].append(GUI.Empty(G, GO.PCTOP, (0, 30)))
-            lay['UI'].append(GUI.Text(G, GO.PCTOP, 'Gravity golf!', GO.CWHITE, GO.FTITLE))
-            lay['UI'].append(GUI.Button(G, GO.PCCENTER, GO.CGREEN, 'Play!!!', func=lambda: self.Game.load_scene()))
+            self.Game.bgcol = self.Game.world.get_level(0).bgColour
+            lay.append(GUI.Empty(self.Game, GO.PCTOP, (0, 30)))
+            lay.append(GUI.Text(self.Game, GO.PCTOP, 'Gravity golf!', GO.CWHITE, GO.FTITLE))
+            lay.append(GUI.Button(self.Game, GO.PCCENTER, GO.CGREEN, 'Play!!!', func=self.Game.load_scene))
             self.rendered = True
 
 @G.DefaultSceneLoader
 class MainGameScene(Ss.BaseScene):
     def __init__(self, Game, **settings):
         super().__init__(Game, **settings)
-        self.CamDist = 2
+        self.CamDist = 3.5
         self.CamBounds = [None, None, None, None]
         self.lvl = settings.get('lvl', 0)
         self.bhs = None
         self.sur = None
         self.showingColls = True
-        self.lastScreenPos = [0, 0]
+        sze = Game.size
+        self.lastScreenPos = [sze[0]/2, sze[1]/2]
         self._collider = None
         for e in self.currentLvl.entities:
             if e.defUid == 7:
@@ -182,6 +176,8 @@ class MainGameScene(Ss.BaseScene):
                     outcolls.extend(collisions.ShapeCombiner.combineRects(*outnews))
             elif lay.type == 'IntGrid':
                 outcolls.extend(lay.intgrid.getRects([1, 2]))
+        for shp in outcolls:
+            shp.bounciness = 0.6
         self._collider = collisions.Shapes(*outcolls)
         return self._collider
     
@@ -196,19 +192,17 @@ class MainGameScene(Ss.BaseScene):
                 playere.collidingDelay = playere.defcollideDelay
                 playere.collided = False
                 angle = collisions.direction(pygame.mouse.get_pos(), self.lastScreenPos)
-                addPos = collisions.pointOnUnitCircle(angle, -30)
+                addPos = collisions.pointOnCircle(angle, -20)
                 def sign(x):
                     if x > 0:
                         return 1
                     if x < 0:
                         return -1
                     return 0
-                addVel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0])/4)*sign(addPos[0]),
-                            min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1])/4)*sign(addPos[1])]
-                playere.velocity = [playere.velocity[0] + addVel[0]/4,
-                                    playere.velocity[1] + addVel[1]/4]
-                playere.target_velocity = [playere.target_velocity[0] + addVel[0],
-                                           playere.target_velocity[1] + addVel[1]]
+                addVel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0])/4)/self.CamDist*sign(addPos[0]),
+                            min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1])/4)/self.CamDist*sign(addPos[1])]
+                playere.velocity = [playere.velocity[0] + addVel[0],
+                                    playere.velocity[1] + addVel[1]]
             else:
                 if didClick:
                     playere.clicked = playere.defClickDelay
@@ -259,25 +253,28 @@ class MainGameScene(Ss.BaseScene):
                     elif isinstance(s, collisions.Point):
                         pygame.draw.circle(self.sur, col, (s.x, s.y), 5)
     
-    def renderUI(self, win, scalef):
-        p = scalef(self.entities[0].scaled_pos)
-        pygame.draw.circle(win, (0, 0, 0), (p[0], p[1]), 10)
-        pygame.draw.circle(win, (255, 255, 255), (p[0], p[1]), 10, 2)
+    def postProcessScreen(self, sur, diffs):
+        sze = sur.get_size()
+        pvel = self.entities[0].velocity
+        ppos = (sze[0]/2-pvel[0], sze[1]/2-pvel[1])
+        self.lastScreenPos = (ppos[0]*self.CamDist, ppos[1]*self.CamDist)
+        pygame.draw.circle(sur, (0, 0, 0), ppos, 5)
+        pygame.draw.circle(sur, (255, 255, 255), ppos, 5, 1)
         if self.entities[0].collided:
             angle = collisions.direction(pygame.mouse.get_pos(), self.lastScreenPos)
-            addPos = collisions.pointOnUnitCircle(angle, -200)
+            addPos = collisions.pointOnCircle(angle, -200)
             def sign(x):
                 if x > 0:
                     return 1
                 if x < 0:
                     return -1
                 return 0
-            addVel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0]))*sign(addPos[0]),
-                        min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1]))*sign(addPos[1])]
-            pygame.draw.line(win, (255, 155, 155), (p[0], p[1]), 
-                            (p[0]+addVel[0], p[1]+addVel[1]), 5)
-        self.lastScreenPos = (p[0], p[1])
+            addVel = [min(abs(addPos[0]), abs(self.lastScreenPos[0]-pygame.mouse.get_pos()[0]))/self.CamDist*sign(addPos[0]),
+                        min(abs(addPos[1]), abs(self.lastScreenPos[1]-pygame.mouse.get_pos()[1]))/self.CamDist*sign(addPos[1])]
+            pygame.draw.line(sur, (255, 155, 155), ppos, 
+                            (ppos[0]+addVel[0], ppos[1]+addVel[1]), 2)
+        return sur
 
 G.load_scene(SplashScreen)
 
-G.play(debug=True)
+G.debug()

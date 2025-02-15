@@ -9,34 +9,27 @@ import os
 from BlazeSudio.Game import world
 from BlazeSudio.utils import wrap
 
+import pygame
+pygame.init()
+pygame.display.set_mode()
+pygame.display.toggle_fullscreen()
+
 world = world.World("./planets.ldtk")
 
 imgs = [[], []]
-szes = []
 for lvl in range(len(world.ldtk.levels)):
-    Ro = None
-    Ri = None
-    size = 128
-    settingsExists = False
     for e in world.ldtk.levels[lvl].entities:
         if e.identifier == 'Settings':
-            settingsExists = True
-            for i in e.fieldInstances:
-                if i['__identifier'] == 'Ro':
-                    Ro = i['__value'] or Ro
-                if i['__identifier'] == 'Ri':
-                    Ri = i['__value'] or Ri
-                if i['__identifier'] == 'size':
-                    size = i['__value'] or size
-    if not settingsExists:
+            break
+    else:
         continue
-    szes.append(size)
 
-    i1, i2 = wrap.wrapLevel(world, lvl)
+    i1, i2 = wrap.wrapLevel(world, lvl, top=0.5, bottom=-1, limit=False)
     imgs[0].append(i1)
     imgs[1].append(i2)
 
 pth = os.path.dirname(__file__) + "/"
 
-wrap.save(imgs[0], pth+"out/out.png", szes)
-wrap.save(imgs[1], pth+"out/colls.png", szes)
+blanks = wrap.find_blanks(imgs[0], imgs[1])
+wrap.save(imgs[0], pth+"out/out.png", 128, blanks)
+wrap.save(imgs[1], pth+"out/colls.png", 128, blanks)

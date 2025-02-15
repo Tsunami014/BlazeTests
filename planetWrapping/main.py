@@ -8,17 +8,16 @@ import pygame
 
 G = Game()
 G.load_map("./main.ldtk")
-G.UILayer.add('Toasts')
 
 class DebugCommands:
     def __init__(self, Game):
         self.Game = Game
         self.showingColls = False
-        self.Game.AddCommand('/colls', 'Toggle collision debug', self.toggleColls)
+        self.Game.AddCommand('colls', '/colls ...: Toggle collision debug', self.toggleColls)
     
-    def toggleColls(self):
+    def toggleColls(self, *args):
         self.showingColls = not self.showingColls
-        self.Game.UILayer['Toasts'].append(GUI.Toast(self.Game.G, ('Showing' if self.showingColls else 'Not showing') + ' collisions'))
+        self.Game.UILayer.append(GUI.Toast(self.Game, ('Showing' if self.showingColls else 'Not showing') + ' collisions'))
 
 debug = DebugCommands(G)
 
@@ -31,7 +30,8 @@ def CollProcessor(e):
 class BaseEntity(Ss.BaseEntity):
     def __init__(self, Game, entity):
         super().__init__(Game, entity)
-        self.max_speed = 15
+        self.max_speed = 5
+        self.friction = 0.5
     
     def __call__(self, evs):
         objs = collisions.Shapes(*self.Game.currentLvL.GetEntitiesByLayer('GravityFields', CollProcessor))
@@ -44,7 +44,7 @@ class BaseEntity(Ss.BaseEntity):
             ydiff, xdiff = thisObj.y-closest[1], thisObj.x-closest[0]
             angle = collisions.direction(closest, thisObj)
             tan = cpoints[0][1].tangent(closest, [xdiff, ydiff])
-            gravity = collisions.pointOnUnitCircle(angle, -0.2)
+            gravity = collisions.pointOnCircle(angle, -8)
         else:
             gravity = [0, 0]
             tan = 0
@@ -54,14 +54,14 @@ class BaseEntity(Ss.BaseEntity):
         if keys[pygame.K_LEFT] ^ keys[pygame.K_RIGHT] or jmp:
             offs = [(0, 0)]
             if jmp:
-                offs.append(collisions.rotateBy0((0, -15), tan-90))
+                offs.append(collisions.rotateBy0((0, -4), tan-90))
             if keys[pygame.K_LEFT]:
-                offs.append(collisions.rotateBy0((-self.acceleration, 0), tan-90))
+                offs.append(collisions.rotateBy0((-0.05, 0), tan-90))
             elif keys[pygame.K_RIGHT]:
-                offs.append(collisions.rotateBy0((self.acceleration, 0), tan-90))
+                offs.append(collisions.rotateBy0((0.05, 0), tan-90))
             off = (sum(i[0] for i in offs), sum(i[1] for i in offs))
-            self.target_velocity = [self.target_velocity[0] + off[0],
-                                    self.target_velocity[1] + off[1]]
+            self.velocity = [self.velocity[0] + off[0],
+                             self.velocity[1] + off[1]]
         self.apply_physics()
         colls = self.Game.currentScene.collider()
         outRect, self.velocity = thisObj.handleCollisionsVel(self.velocity, colls, False)
@@ -79,7 +79,7 @@ class MainGameScene(Ss.BaseScene):
         self.sur = None
         self.showingColls = True
         self._collider = None
-        self.CamDist = 4
+        self.CamDist = 5.5
         self.CamBounds = [None, None, None, None]
         for e in self.currentLvl.entities:
             if e.defUid == 6:
@@ -125,11 +125,12 @@ class MainGameScene(Ss.BaseScene):
                         pygame.draw.circle(self.sur, col, (s.x, s.y), s.r, 1)
         return self.sur
     
-    def renderUI(self, win, scaleF):
-        pos = scaleF(self.entities[0].scaled_pos)
-        pygame.draw.circle(win, (0, 0, 0), pos, 10)
-        pygame.draw.circle(win, (255, 255, 255), pos, 10, 2)
+    def postProcessScreen(self, sur, diffs):
+        pos = (sur.get_width()/2, sur.get_height()/2)
+        pygame.draw.circle(sur, (0, 0, 0), pos, 5)
+        pygame.draw.circle(sur, (255, 255, 255), pos, 5, 1)
+        return sur
 
 G.load_scene()
 
-G.play(debug=True)
+G.debug()

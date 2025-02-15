@@ -1857,7 +1857,7 @@
 		{
 			"__cWid": 1,
 			"__cHei": 3,
-			"identifier": "Out2",
+			"identifier": "Out",
 			"uid": 114,
 			"relPath": "out/out.png",
 			"embedAtlas": null,
@@ -1871,7 +1871,7 @@
 			"enumTags": [],
 			"customData": [],
 			"savedSelections": [],
-			"cachedPixelData": { "opaqueTiles": "000", "averageColors": "266744453566" }
+			"cachedPixelData": { "opaqueTiles": "000", "averageColors": "156673453556" }
 		},
 		{
 			"__cWid": 32,

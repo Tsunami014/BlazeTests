@@ -13,10 +13,5 @@
         "Name": "Planet Wrapping",
         "Folder": "planetWrapping",
         "Description": "A thingo to test image wrapping to make planets!"
-    },
-    {
-        "Name": "Are you sure?",
-        "Folder": "RUSure",
-        "Description": "You need to make *absolutely sure* you want to play this game!"
     }
 ]

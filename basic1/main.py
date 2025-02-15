@@ -6,30 +6,28 @@ import pygame
 
 G = Game()
 G.load_map("./world.ldtk")
-G.UILayer.add('Toasts')
 
 class DebugCommands: # TODO: Make this not floating around as a global variable
     def __init__(self, Game):
         self.Game = Game
         self.collTyp = False
-        self.Game.AddCommand('/colltyp', 'Toggle collision type from/to point and box', self.toggleColls)
+        self.Game.AddCommand('colltyp', '/colltyp ...: Toggle collision type from/to point and box', self.toggleColls)
     
-    def toggleColls(self):
+    def toggleColls(self, *args):
         self.collTyp = not self.collTyp
-        self.Game.UILayer['Toasts'].append(GUI.Toast(self.Game.G, 'Changed to '+('point' if self.collTyp else 'box') + ' collisions'))
+        self.Game.UILayer.append(GUI.Toast(self.Game, 'Changed to '+('point' if self.collTyp else 'box') + ' collisions'))
 
 debug = DebugCommands(G)
 
 class BaseEntity(Ss.BaseEntity):
     def __init__(self, Game, e):
         super().__init__(Game, e)
-        self.acceleration = 1  # Rate of acceleration
-        self.gravity = [0, 0.125]
+        self.gravity = [0, 2]
     
     def __call__(self, evs):
         self.handle_keys()
         self.apply_physics()
-        colls = self.Game.currentLvl.layers[1].intgrid.getRects(1)
+        colls = self.Game.currentLvL.layers[1].intgrid.getRects(1)
         #for i in colls:
         #    i.bounciness = 1
         if debug.collTyp:
@@ -59,7 +57,7 @@ class MainGameScene(Ss.BaseScene):
         self.CamDist = 8
         for e in self.currentLvl.entities:
             if e.defUid == 107:
-                self.entities.append(BaseEntity(self, e)) # The Player
+                self.entities.append(BaseEntity(Game, e)) # The Player
                 self.DefaultEntity.append(e)
                 if settings.get('UsePlayerStart', False):
                     self.entities[0].pos = [e.UnscaledPos[0]+0.5, e.UnscaledPos[1]+0.5]
@@ -68,7 +66,7 @@ class MainGameScene(Ss.BaseScene):
                 break
         if self.entities == []:
             if self.DefaultEntity != []:
-                self.entities.append(BaseEntity(self, self.DefaultEntity[-1]))
+                self.entities.append(BaseEntity(Game, self.DefaultEntity[-1]))
                 self.entities[0].pos = [settings.get('x', 0.5), settings.get('y', 0.5)]
             else:
                 raise Ss.IncorrectLevelError(
@@ -93,13 +91,19 @@ class MainGameScene(Ss.BaseScene):
             if playere.scaled_pos[1] >= self.currentLvl.sizePx[1] and n['dir'] == 's':
                 G.load_scene(lvl=nxtLvl, x=playere.pos[0], y=self.Game.world.get_level(nxtLvl).sizePx[1]/playere.entity.gridSze-0.5)
     
-    def renderUI(self, win, scaleF):
-        playersze = self.CamDist*self.entities[0].entity.gridSze
-        pos = scaleF(self.entities[0].scaled_pos)
-        r = (pos[0]-(playersze//2), pos[1]-(playersze//2), playersze, playersze)
-        pygame.draw.rect(win, (0, 0, 0), r, border_radius=2)
-        pygame.draw.rect(win, (255, 255, 255), r, width=5, border_radius=2)
+    def postProcessScreen(self, sur, diffs):
+        ppos = self.entities[0].scaled_pos
+        diff = (
+            diffs[0]/self.CamDist-ppos[0],
+            diffs[1]/self.CamDist-ppos[1]
+        )
+        sze = sur.get_size()
+        psze = 10
+        r = ((sze[0]-psze)/2-diff[0], (sze[1]-psze)/2-diff[1], psze, psze)
+        pygame.draw.rect(sur, (0, 0, 0), r, border_radius=2)
+        pygame.draw.rect(sur, (255, 255, 255), r, width=1, border_radius=2)
+        return sur
 
 G.load_scene(UsePlayerStart=True)
 
-G.play(debug=True)
+G.debug()
